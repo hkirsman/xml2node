@@ -1,0 +1,23 @@
+<?php
+// $Id$
+
+/*
+ * @file
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function xml2node_uninstall() {
+  // Delete all items in the xml2node drupal queue
+  $queue = drupal_queue_get('xml2node_queue');
+  $queue->deleteQueue();
+  
+  // Unset all defined variables
+  variable_del('xml2node_run_on_cron');
+  variable_del('xml2node_queue_time');
+  variable_del('xml2node_hotfolders');
+  variable_del('xml2node_filepath');
+  variable_del('xml2node_count');
+  variable_del('xml2node_offset');
+}
