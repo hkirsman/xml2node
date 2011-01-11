@@ -77,6 +77,9 @@ class Contentmapper {
           $arrMapped['values'][$field['@attributes']['ref']] = '';
         }
       }
+      elseif ($field['@attriutes']['type'] == 'reference') {
+        $this->generateReferenceField($arrMapped['values'], $field, $arrMapped['type']);
+      }
     }
     
     // only fill missing fields with default values, when CRUD Action is 'create'
@@ -110,6 +113,38 @@ class Contentmapper {
     }
     else { // just return the text value
       $values[$id] = $field['@text'];
+    }
+  }
+
+  /**
+   * generates the field value in the correct drupal values format
+   *
+   * @param $id the field name
+   * @param $values the fields values
+   */
+  private function generateReferenceField(&$values, $field, $type = '') {
+    $id = $field['@name'];
+    
+    if (isset($field['@children']) && count($field['@children']) > 0) {
+      if ($field['@attributes']['type'] == 'field') {
+        $values_ref = &$values[$id][];
+      }
+      else {
+        $values_ref = &$values[$id];
+      }
+      
+      foreach ($field['@children'] as $child) {
+          $this->generateReferenceField($values_ref, $child);
+      }
+    }
+    else { // just return the text value
+      if (isset($field['@attributes']['ref_key'])) {
+        module_load_include('inc', 'xml2node', 'includes/xml2node.nodecreator');
+        $values[$id] = Nodecreator::getNode($type ,$field['ref_key'], $field['@text'];
+      }
+      else {
+        // TODO: log that the argument is missing
+      }
     }
   }
 

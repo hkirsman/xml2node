@@ -91,7 +91,7 @@ class Nodecreator {
       switch ($crud['action']) {
         case 'u':
           // UPDATE
-          $node = $this->getNode($type, $crud['key'], $crud['value']);
+          $node = self->getNode($type, $crud['key'], $crud['value']);
         case 'c':
           // CREATE / UPDATE
           if (!isset($node->nid)) {
@@ -125,7 +125,7 @@ class Nodecreator {
           break;
         case 'd':
           // DELETE
-          $node = $this->getNode($type, $crud['key'], $crud['value']);
+          $node = self->getNode($type, $crud['key'], $crud['value']);
           if (isset($node->nid)) {
             node_delete($node->nid);
           }
@@ -144,7 +144,7 @@ class Nodecreator {
    * @param mixed $value
    * @return loaded node
    */
-  private function getNode($type, $key = NULL, $value = NULL) {
+  public static function getNode($type, $key = NULL, $value = NULL) {
     $sql = "SELECT nid FROM {content_type_%s} WHERE %s='%s'";
     $result = db_query($sql, $type, $key, $value);
     $node = db_fetch_object($result);
