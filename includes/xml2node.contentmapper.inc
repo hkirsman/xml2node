@@ -118,9 +118,12 @@ class Contentmapper {
 
   /**
    * generates the field value in the correct drupal values format
+   * tries to get the node that matches the key value pair and 
+   * references the nid to the field
    *
-   * @param $id the field name
-   * @param $values the fields values
+   * @param $values the node values array
+   * @param $field the field 
+   * @param $type the content type for the current node
    */
   private function generateReferenceField(&$values, $field, $type = '') {
     $id = $field['@name'];
@@ -140,7 +143,8 @@ class Contentmapper {
     else { // just return the text value
       if (isset($field['@attributes']['ref_key'])) {
         module_load_include('inc', 'xml2node', 'includes/xml2node.nodecreator');
-        $values[$id] = Nodecreator::getNode($type ,$field['ref_key'], $field['@text'];
+        $node = Nodecreator::getNode($type ,$field['ref_key'], $field['@text'];
+        $values[$id] = isset($node->nid) ? $node->nid : '';
       }
       else {
         // TODO: log that the argument is missing

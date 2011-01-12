@@ -6,6 +6,13 @@
  */
 
 /**
+ * Implements hook_install().
+ */
+function xml2node_install() {
+  variable_set('queue_class_xml2node_queue', 'SystemQueue');
+}
+
+/**
  * Implements hook_uninstall().
  */
 function xml2node_uninstall() {
@@ -20,4 +27,5 @@ function xml2node_uninstall() {
   variable_del('xml2node_filepath');
   variable_del('xml2node_count');
   variable_del('xml2node_offset');
+  variable_del('queue_class_xml2node_queue');
 }
