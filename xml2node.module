@@ -345,7 +345,7 @@ function xml2node_x2n_preprocess_fields($fields, $type) {
   foreach ($fields as $field_name => &$field_value) {
     // check if this is a filefield, yes => download the file and add it to the database
     if ($contentTypeInfo['fields'][$field_name]['type'] == 'filefield') {
-      $filestore = 'sites/default/files';
+      $filestore = file_directory_path();
       if (is_array($field_value)) {
         foreach ($field_value as &$value) {
           if (isset($value['filename'])) {
