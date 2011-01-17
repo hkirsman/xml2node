@@ -368,8 +368,8 @@ function xml2node_x2n_preprocess_fields($fields, $type) {
               $file->filepath = $resulting_filepath;
               // move the file to the destination direcetory
               if (file_move($file, $filePath)) {
-                // save the file to the database
-                $value = xml2node_add_file_to_database($file);
+                // save the file to the database and get additional file information into the value array
+                $value = xml2node_array_join($value, xml2node_add_file_to_database($file));
               } else {
                 drupal_set_message(t('The file %file could not be moved.', array('%file' => $resulting_filepath)), 'error');
                 // set the value empty, so it will not be saved with the node
@@ -471,3 +471,37 @@ function xml2node_download_file_to_temp($source, $filename) {
   }
   return FALSE;
 }
+
+/**
+ * Backport of the PHP 5.3 function "array_replace_recursive by kyle [dot] florence [@t] gmail [dot] com
+ * Joins two or more arrays together recursively; key/value pairs of the first 
+ * array are replaced with key/value pairs from the subsequent arrays.  Any 
+ * key/value pair not present in the first array is added to the final array 
+ */
+function xml2node_array_join() { 
+  // Get array arguments 
+  $arrays = func_get_args(); 
+
+  // Define the original array 
+  $original = array_shift($arrays); 
+
+  // Loop through arrays 
+  foreach ($arrays as $array) {
+      // Loop through array key/value pairs 
+      foreach ($array as $key => $value) {
+          // Value is an array 
+          if (is_array($value)) {
+              // Traverse the array; replace or add result to original array 
+              $original[$key] = array_join($original[$key], $array[$key]); 
+          } 
+          // Value is not an array 
+          else {
+              // Replace or add current value to original array 
+              $original[$key] = $value; 
+          } 
+      } 
+  } 
+
+  // Return the joined array 
+  return $original; 
+} 
