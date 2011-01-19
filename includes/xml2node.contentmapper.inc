@@ -143,7 +143,7 @@ class Contentmapper {
     else { // just return the text value
       if (isset($field['@attributes']['ref_key'])) {
         module_load_include('inc', 'xml2node', 'includes/xml2node.nodecreator');
-        $node = Nodecreator::getNode($type ,$field['ref_key'], $field['@text'];
+        $node = Nodecreator::getNode($type ,$field['ref_key'], $field['@text']);
         $values[$id] = isset($node->nid) ? $node->nid : '';
       }
       else {

@@ -91,7 +91,7 @@ class Nodecreator {
       switch ($crud['action']) {
         case 'u':
           // UPDATE
-          $node = self->getNode($type, $crud['key'], $crud['value']);
+          $node = self::getNode($type, $crud['key'], $crud['value']);
         case 'c':
           // CREATE / UPDATE
           if (!isset($node->nid)) {
@@ -125,7 +125,7 @@ class Nodecreator {
           break;
         case 'd':
           // DELETE
-          $node = self->getNode($type, $crud['key'], $crud['value']);
+          $node = self::getNode($type, $crud['key'], $crud['value']);
           if (isset($node->nid)) {
             node_delete($node->nid);
           }
@@ -145,18 +145,33 @@ class Nodecreator {
    * @return loaded node
    */
   public static function getNode($type, $key = NULL, $value = NULL) {
-    $sql = "SELECT nid FROM {content_type_%s} WHERE %s='%s'";
-    $result = db_query($sql, $type, $key, $value);
-    $node = db_fetch_object($result);
-    
-    if (is_object($node) && isset($node->nid)) {
-      $node = node_load($node->nid);
+    if (isset($key) && isset($value) && isset($type)) {
+      // get contenttype information
+      $contentTypeInfo = content_types($type);
+      $field = $contentTypeInfo['fields'][$key];
+      
+      if (isset($field) && is_array($field)) {
+        if ($field['db_storage'] == 0) {
+          $sql = "SELECT node.nid AS nid FROM {node} LEFT JOIN {content_%s} AS field_table ON node.vid = field_table.vid WHERE (node.type in ('%s')) AND ((field_table.%s_value) = ('%s'))";
+          $result = db_query($sql, $key, $type, $key, $value);
+          $node = db_fetch_object($result);
+        }
+        elseif ($field['db_storage'] == 1) {
+          $sql = "SELECT nid FROM {content_type_%s} WHERE %s='%s'";
+          $result = db_query($sql, $type, $key . '_value', $value);
+          $node = db_fetch_object($result);
+        }
+
+        if (isset($node) && is_object($node) && isset($node->nid)) {
+          $node = node_load($node->nid);
+          return $node;
+        }
+        else {
+          return null;
+        }
+      }
     }
-    else {
-      $node = new stdClass();
-    }
-    
-    return $node;
+    return null;
   }
 
   /**
