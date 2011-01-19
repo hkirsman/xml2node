@@ -77,7 +77,7 @@ class Contentmapper {
           $arrMapped['values'][$field['@attributes']['ref']] = '';
         }
       }
-      elseif ($field['@attriutes']['type'] == 'reference') {
+      elseif ($field['@attributes']['type'] == 'reference') {
         $this->generateReferenceField($arrMapped['values'], $field, $arrMapped['type']);
       }
     }
@@ -129,7 +129,7 @@ class Contentmapper {
     $id = $field['@name'];
     
     if (isset($field['@children']) && count($field['@children']) > 0) {
-      if ($field['@attributes']['type'] == 'field') {
+      if ($field['@attributes']['type'] == 'reference') {
         $values_ref = &$values[$id][];
       }
       else {
@@ -137,13 +137,13 @@ class Contentmapper {
       }
       
       foreach ($field['@children'] as $child) {
-          $this->generateReferenceField($values_ref, $child);
+          $this->generateReferenceField($values_ref, $child, $type);
       }
     }
     else { // just return the text value
       if (isset($field['@attributes']['ref_key'])) {
         module_load_include('inc', 'xml2node', 'includes/xml2node.nodecreator');
-        $node = Nodecreator::getNode($type ,$field['ref_key'], $field['@text']);
+        $node = Nodecreator::getNode($type ,$field['@attributes']['ref_key'], $field['@text']);
         $values[$id] = isset($node->nid) ? $node->nid : '';
       }
       else {
