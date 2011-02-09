@@ -18,6 +18,13 @@ function xml2node_settings_form() {
     '#description' => t('Import Nodes from XML Files stored in Hotfolders on every cron run?'),
   );
   
+  $form['drupal_queue_on_cron'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Process queue on drupal cron'),
+    '#default_value' => variable_get('drupal_queue_on_cron', 0),
+    '#description' => t('Should the drupal queue module process queues on normal cron?'),
+  );
+  
   $form['xml2node_queue_time'] = array(
     '#type' => 'textfield',
     '#title' => t('Queue worker time'),
