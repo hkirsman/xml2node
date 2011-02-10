@@ -141,9 +141,9 @@ class Contentmapper {
       }
     }
     else { // just return the text value
-      if (isset($field['@attributes']['ref_key'])) {
+      if (isset($field['@attributes']['ref_key']) && isset($field['@attributes']['ref_type'])) {
         module_load_include('inc', 'xml2node', 'includes/xml2node.nodecreator');
-        $node = Nodecreator::getNode($type ,$field['@attributes']['ref_key'], $field['@text']);
+        $node = Nodecreator::getNode($field['@attributes']['ref_type'] ,$field['@attributes']['ref_key'], $field['@text']);
         $values[$id] = isset($node->nid) ? $node->nid : '';
       }
       else {
