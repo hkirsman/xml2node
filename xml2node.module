@@ -314,7 +314,7 @@ function xml2node_import_node_proceed($node) {
   
   // save the node using the nodecreator class
   $nodecreator = new Nodecreator();
-  $nid = $nodecreator->nodeSaveAlternative($node['type'], '', $node['values'], $node['crud']);
+  $nid = $nodecreator->nodeSaveAlternative($node['type'], '', $node['values'], $node['crud'], $node['redirect']);
 
   // return false if there were errors, creating the node
   if ($nid != FALSE) {

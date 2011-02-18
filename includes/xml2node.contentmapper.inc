@@ -61,6 +61,11 @@ class Contentmapper {
     if (isset($arrOriginal['@attributes']['ref'])) {
       $arrMapped['reference_field'] = $arrOriginal['@attributes']['ref'];
     }
+    
+    // if there should be added a path redirect, set the redirect value
+    if (isset($arrOriginal['@attributes']['redirect'])) {
+      $arrMapped['redirect'] = $arrOriginal['@attributes']['redirect'];
+    }
 
     // fill up the values array
     foreach ($arrOriginal['@children'] as $field) {

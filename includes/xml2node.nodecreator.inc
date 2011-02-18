@@ -82,7 +82,7 @@ class Nodecreator {
    * @param $values array - the values array
    * @param $crud array - the CRUD Action to perform
    */
-  public function nodeSaveAlternative($type, $language = '', $values = array(), $crud = array('action' => 'c')) {
+  public function nodeSaveAlternative($type, $language = '', $values = array(), $crud = array('action' => 'c'), $redirect = NULL) {
     if (!empty($type)) {
       global $user;
       
@@ -120,6 +120,7 @@ class Nodecreator {
           node_save($node);
     
           if (isset($node->nid)) {
+            $this->createRedirect($node->nid, $redirect, $crud['action']);
             return $node->nid;
           }
           break;
@@ -172,6 +173,52 @@ class Nodecreator {
       }
     }
     return null;
+  }
+  
+  /**
+   * creates a redirect for a specific url to the node
+   * based on the path_redirect module (if enabled).
+   * 
+   * @param $nid the node id to redirect to
+   * @param $redirect_url the source url
+   * @param $crud_op u or c for update or create
+   */
+  private function createRedirect($nid, $redirect_url, $crud_op) {
+    if (isset($redirect_url) && !empty($redirect_url) && isset($nid) && !empty($nid)) {
+      if (module_exists('path_redirect')) {
+        $redirect_obj = array(
+          'source' => '',
+          'redirect' => 'node/' . $nid,
+          'language' => '',
+          'type' => 301,
+          'query' => '',
+          'fragment' => '',
+          'last_used' => time(),
+        );
+        
+        $url = parse_url($redirect_url);
+        $redirect_obj['query'] = $url['query'];
+        $redirect_obj['fragment'] = $url['fragment'];
+        $redirect_obj['source'] = $url['path'];
+        
+        switch ($crud_op) {
+          case 'u':
+            // TODO: Check if there is already a redirect for the source and update it.
+          case 'c':
+            $result = path_redirect_save($redirect_obj);
+            
+            if (!isset($result['rid'])) {
+              watchdog('xml2node', 'Redirect for node !node not created. URL: !url'
+                  , array(
+                    '!node' => $nid,
+                    '!url' => $redirect_url,
+                  ), WATCHDOG_ERROR);
+            }
+            
+            break;
+        }
+      }
+    }
   }
 
   /**
