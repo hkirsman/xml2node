@@ -1,4 +1,3 @@
-; $Id$
 name = "xml2node"
 description = "This module imports your content from predefined xml files"
 core = 6.x
