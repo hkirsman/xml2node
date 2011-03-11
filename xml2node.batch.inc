@@ -28,7 +28,7 @@ function xml2node_import_node($index, $import_file, &$context) {
 function xml2node_import_node_finished($success, $results, $operations) {
   
   if ($success) {
-    $message = format_plural(count($results), '1 node imported!', '@count nodes imported!');
+    $message = format_plural(count($results), '1 node imported! Check the watchdog log!', '@count nodes imported! Check the watchdog log!');
   }
   else {
     // An error occurred.

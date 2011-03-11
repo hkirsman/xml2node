@@ -122,6 +122,13 @@ class Nodecreator {
             $this->createRedirect($node->nid, $redirect, $crud['action']);
             return $node->nid;
           }
+          else {
+            // node wasn't saved correctly, log it
+            watchdog('xml2node', 'Error saving node: !title'
+                , array(
+                  '!title' => $node->title,
+                ), WATCHDOG_ERROR);
+          }
           break;
         case 'd':
           // DELETE

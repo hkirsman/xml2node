@@ -78,7 +78,14 @@ class Contentparser {
           $simple_xml_obj = simplexml_import_dom($dom_doc->importNode($dom, TRUE));
           
           $this->arr_content = array();
-          return $this->convertXmlObjToArr($simple_xml_obj, $this->arr_content);
+          $result = $this->convertXmlObjToArr($simple_xml_obj, $this->arr_content);
+
+          // free memory
+          unset($dom);
+          unset($dom_doc);
+          unset($simple_xml_obj);
+          
+          return $result;
         }
         else {
           return FALSE;
@@ -163,6 +170,11 @@ class Contentparser {
     foreach ($children as $child) {
       $this->convertXmlObjToArr($child, $arr[$nextIdx]['@children']);
     }
+
+    // free memory
+    unset($text);
+    unset($children);
+    unset($node);
     
     return TRUE;
   }

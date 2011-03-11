@@ -120,12 +120,23 @@ function xml2node_proceed_import($import_file, $count = 0, $offset = 0, $method 
         }
       }
       else {
+        // don't log to watchdog, because this only happens with manually startet imports
         drupal_set_message(t('The defined offset is larger then the number of elements in the xml file.'), 'error');
       }
     }
     else {
-      drupal_set_message(t('The XML File contains no content type elements! Check the file path.'), 'error');
+      if ($method == 'batch') {
+        drupal_set_message(t('The XML File contains no content type elements! Check the file path.'), 'error');
+      }
+      else {
+        watchdog('xml2node', 'The XML File @file contains no content type elements! Check the file path.'
+            , array(
+          '@file' => $import_file
+            ), WATCHDOG_ERROR);
+      }
     }
+    // free memory
+    unset($parser);
   }
 }
 
@@ -159,12 +170,20 @@ function xml2node_import_xml_record($index, $xml_file) {
       $result = xml2node_import_node_proceed($node_to_save);
 
       if (!$result) {
-        drupal_set_message(t('An error occured on Node at index @index from the xml file @xml. The Node is not saved in drupal.', array('@index' => $index, '@xml' => $xml_file)), 'error');
+        watchdog('xml2node', 'An error occured during import at index @index of the xml file @xml. The Node is not saved in drupal.'
+            , array(
+          '@index' => $index,
+          '@xml' => $xml_file
+            ), WATCHDOG_ERROR);
       }
     }
   }
   else {
-    drupal_set_message(t('The record with the index @index could not be read from the xml file @xml', array('@index' => $index, '@xml' => $xml_file)), 'error');
+    watchdog('xml2node', 'The record with the index @index could not be read from the xml file @xml'
+        , array(
+      '@index' => $index,
+      '@xml' => $xml_file
+        ), WATCHDOG_ERROR);
   }
 }
 
@@ -332,10 +351,17 @@ function xml2node_import_node_proceed($node) {
     if (count($reference_node_info) > 0) {
       $current_node_info[$nid]['references'] = $reference_node_info;
     }
+    // free memory
+    unset($node);
+    unset($nodecreator);
 
     return $current_node_info;
   }
   else {
+    // free memory
+    unset($node);
+    unset($nodecreator);
+
     return FALSE;
   }
 }
@@ -377,13 +403,19 @@ function xml2node_x2n_preprocess_fields($fields, $type) {
                 $value = xml2node_array_join($value, xml2node_add_file_to_database($file));
               }
               else {
-                drupal_set_message(t('The file %file could not be moved.', array('%file' => $resulting_filepath)), 'error');
+                watchdog('xml2node', 'The file %file could not be moved.'
+                    , array(
+                  '%file' => $resulting_filepath,
+                    ), WATCHDOG_ERROR);
                 // set the value empty, so it will not be saved with the node
                 $value = NULL;
               }
             }
             else {
-              drupal_set_message(t('The file %file could not be created.', array('%file' => $file->filepath)), 'error');
+              watchdog('xml2node', 'The file %file could not be created.'
+                  , array(
+                '%file' => $file->filepath,
+                  ), WATCHDOG_ERROR);
               // set the value empty, so it will not be saved with the node
               $value = NULL;
             }
@@ -440,19 +472,27 @@ function xml2node_download_file_to_temp($source, $filename) {
 
       // write the file to the destination
       if (!file_put_contents($directory . '/' . $filename, $request_result->data)) {
-        // notify the user, that there was an error saving the file
-        $message = t('The file @source could not be saved to the temp directory!', array('@source' => $source));
-        drupal_set_message($message, 'error');
+        // log that there was an error saving the file
+        watchdog('xml2node', 'The file @source could not be saved to the temp directory!'
+            , array(
+          '@source' => $source,
+            ), WATCHDOG_ERROR);
 
         return FALSE;
       }
 
+      // free memory
+      unset($request_result);
+
       return $directory . '/' . $filename;
     }
     else {
-      // notify the user, that there was an error downloading the file
-      $message = t('The file @source could not be downloaded!', array('@source' => $source));
-      drupal_set_message($message, 'error');
+      // log, that there was an error downloading the file
+      watchdog('xml2node', 'The file @source could not be downloaded (@status_code)!'
+          , array(
+        '@source' => $source,
+        '@status_code' => $request_result->code
+          ), WATCHDOG_ERROR);
 
       return FALSE;
     }
@@ -466,9 +506,11 @@ function xml2node_download_file_to_temp($source, $filename) {
 
     // write the file to the destination
     if (!file_copy($source, $directory)) {
-      // notify the user, that there was an error saving the file
-      $message = t('The file @source could not be saved to the temp directory!', array('@source' => $source));
-      drupal_set_message($message, 'error');
+      // log that there was an error saving the file
+      watchdog('xml2node', 'The file @source could not be saved to the temp directory!'
+          , array(
+        '@source' => $source
+          ), WATCHDOG_ERROR);
 
       return FALSE;
     }
