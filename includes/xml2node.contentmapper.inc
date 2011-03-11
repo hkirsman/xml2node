@@ -9,7 +9,6 @@
 class Contentmapper {
 
   // property declarations
-
   // array - content read from file
   private $originalContent = array();
   // array - mapped content in array structure
@@ -33,7 +32,7 @@ class Contentmapper {
    */
   public function mapContent() {
     $count = count($this->originalContent);
-    for ($i=0; $i < $count; $i++) {
+    for ($i = 0; $i < $count; $i++) {
       $this->mappedContent[$i] = array();
       $this->generateMappedContent($this->originalContent[$i], $this->mappedContent[$i]);
     }
@@ -60,7 +59,7 @@ class Contentmapper {
     if (isset($arrOriginal['@attributes']['ref'])) {
       $arrMapped['reference_field'] = $arrOriginal['@attributes']['ref'];
     }
-    
+
     // if there should be added a path redirect, set the redirect value
     if (isset($arrOriginal['@attributes']['redirect'])) {
       $arrMapped['redirect'] = $arrOriginal['@attributes']['redirect'];
@@ -84,8 +83,11 @@ class Contentmapper {
       elseif ($field['@attributes']['type'] == 'reference') {
         $this->generateReferenceField($arrMapped['values'], $field, $arrMapped['type']);
       }
+      elseif ($field['@attributes']['type'] == 'comment') {
+        $this->generateComment($arrMapped['comment_entries'], $field);
+      }
     }
-    
+
     // only fill missing fields with default values, when CRUD Action is 'create'
     // if we do this on 'update', some fields could be overwritten with default-values
     if ($arrMapped['crud']['action'] == 'c') {
@@ -110,9 +112,9 @@ class Contentmapper {
       else {
         $values_ref = &$values[$id];
       }
-      
+
       foreach ($field['@children'] as $child) {
-          $this->generateField($values_ref, $child);
+        $this->generateField($values_ref, $child);
       }
     }
     else { // just return the text value
@@ -131,7 +133,7 @@ class Contentmapper {
    */
   private function generateReferenceField(&$values, $field, $type = '') {
     $id = $field['@name'];
-    
+
     if (isset($field['@children']) && count($field['@children']) > 0) {
       if ($field['@attributes']['type'] == 'reference') {
         $values_ref = &$values[$id][];
@@ -139,20 +141,49 @@ class Contentmapper {
       else {
         $values_ref = &$values[$id];
       }
-      
+
       foreach ($field['@children'] as $child) {
-          $this->generateReferenceField($values_ref, $child, $type);
+        $this->generateReferenceField($values_ref, $child, $type);
       }
     }
     else { // just return the text value
       if (isset($field['@attributes']['ref_key']) && isset($field['@attributes']['ref_type'])) {
         module_load_include('inc', 'xml2node', 'includes/xml2node.nodecreator');
-        $node = Nodecreator::getNode($field['@attributes']['ref_type'] ,$field['@attributes']['ref_key'], $field['@text']);
+        $node = Nodecreator::getNode($field['@attributes']['ref_type'], $field['@attributes']['ref_key'], $field['@text']);
         $values[$id] = isset($node->nid) ? $node->nid : '';
       }
       else {
         // TODO: log that the argument is missing
       }
+    }
+  }
+
+  /**
+   * generates the values array for comments
+   *
+   * @param $values container for the comments values
+   * @param $field the comment values
+   */
+  private function generateComment(&$values, $field) {
+    // fill up the comments data in the values array
+    if (isset($field['@children']) && count($field['@children']) > 0) {
+      $comment_values = array();
+
+      foreach ($field['@children'] as $child) {
+        // parent comments are located as child element comment elements, so we have to call
+        // the function recursively again.
+        if (isset($child['@attributes']['type']) && $child['@attributes']['type'] == 'comment') {
+          $this->generateComment($comment_values['childs'], $child);
+        }
+        elseif (isset($child['@children']) && count($child['@children']) > 0) {
+          $this->generateComment($comment_values['values'][$child['@name']], $child);
+        }
+        else {
+          $comment_values['values'][$child['@name']] = $child['@text'];
+        }
+      }
+
+      $values[] = $comment_values;
     }
   }
 
@@ -187,7 +218,7 @@ class Contentmapper {
 
     if (isset($contentTypeInfo['fields'][$id]['widget']['default_value'])) {
       if ($contentTypeInfo['fields'][$id]['type'] != 'datestamp' &&
-      $contentTypeInfo['fields'][$id]['type'] != 'datetime') {
+          $contentTypeInfo['fields'][$id]['type'] != 'datetime') {
         return $contentTypeInfo['fields'][$id]['widget']['default_value'];
       }
     }
@@ -222,7 +253,7 @@ class Contentmapper {
     if (!$termId) {
       $termId = $this->saveTaxonomyTerm($term['@text'], $term['@attributes']['vid'], $parentId);
     }
-    
+
     // Has this taxonomie child terms
     if (isset($term['@children']) && count($term['@children']) > 0) {
       // call this function for every child, with the current term id as parent id
@@ -236,12 +267,12 @@ class Contentmapper {
       // we are finished, set the termId into the values field
       $values['taxonomy'][$term['@attributes']['vid']][] = $termId;
     }
-    
+
     // Build parent "path"
     if (isset($term['@attributes']['take_parents']) && $term['@attributes']['take_parents'] == '1') {
-      
+
       $parents = taxonomy_get_parents_all($termId);
-      
+
       foreach ($parents as $key => $parent) {
         // Ignore first element because it's the actual term
         if ($key > 0) {
@@ -279,10 +310,10 @@ class Contentmapper {
    */
   private function saveTaxonomyTerm($termName, $vid, $parentId = 0) {
     $term = array(
-      'vid' => $vid,             // Voacabulary ID
-      'name' => $termName,       // Term Name 
-    //'synonyms' => 'Druplet',   // (Optional) Synonym of this term
-    //'relations' => array(15),  // (Optional) Related Term IDs
+      'vid' => $vid, // Voacabulary ID
+      'name' => $termName, // Term Name
+        //'synonyms' => 'Druplet',   // (Optional) Synonym of this term
+        //'relations' => array(15),  // (Optional) Related Term IDs
     );
 
     if ($parentId > 0) {
@@ -299,4 +330,5 @@ class Contentmapper {
   public function __destruct() {
     // not used - placeholder
   }
+
 }

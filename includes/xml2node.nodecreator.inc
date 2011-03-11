@@ -10,9 +10,9 @@ class Nodecreator {
 
   // property declarations
   // ...
-
   // constructor
   public function __construct() {
+
   }
 
   /**
@@ -45,7 +45,7 @@ class Nodecreator {
         'status' => TRUE,
         'promote' => FALSE,
         'sticky' => FALSE,
-      // TODO: get created and changed date out of the values array
+        // TODO: get created and changed date out of the values array
         'created' => time(),
         'revision' => FALSE,
         'comment' => '0',
@@ -84,9 +84,9 @@ class Nodecreator {
   public function nodeSaveAlternative($type, $language = '', $values = array(), $crud = array('action' => 'c'), $redirect = NULL) {
     if (!empty($type)) {
       global $user;
-      
+
       $node = new stdClass();
-      
+
       switch ($crud['action']) {
         case 'u':
           // UPDATE
@@ -95,7 +95,7 @@ class Nodecreator {
           // CREATE / UPDATE
           if (!isset($node->nid)) {
             $node = new stdClass();
-      
+
             // create basic node structure
             $node->uid = (string) $user->uid;
             $node->name = (string) $user->name;
@@ -111,13 +111,13 @@ class Nodecreator {
             $node->revision = FALSE;
             $node->comment = 0;
           }
-          
+
           foreach ($values as $fieldName => $value) {
             $node->$fieldName = $value;
           }
-    
+
           node_save($node);
-    
+
           if (isset($node->nid)) {
             $this->createRedirect($node->nid, $redirect, $crud['action']);
             return $node->nid;
@@ -131,12 +131,10 @@ class Nodecreator {
           }
           break;
       }
-      
-      
     }
     return FALSE;
   }
-  
+
   /**
    * Loads a node that fullfills the key=>value condition
    * 
@@ -149,7 +147,7 @@ class Nodecreator {
       // get contenttype information
       $contentTypeInfo = content_types($type);
       $field = $contentTypeInfo['fields'][$key];
-      
+
       if (isset($field) && is_array($field)) {
         if ($field['db_storage'] == 0) {
           $sql = "SELECT node.nid AS nid FROM {node} LEFT JOIN {content_%s} AS field_table ON node.vid = field_table.vid WHERE (node.type in ('%s')) AND ((field_table.%s_value) = ('%s'))";
@@ -173,7 +171,7 @@ class Nodecreator {
     }
     return null;
   }
-  
+
   /**
    * creates a redirect for a specific url to the node
    * based on the path_redirect module (if enabled).
@@ -194,30 +192,54 @@ class Nodecreator {
           'fragment' => '',
           'last_used' => time(),
         );
-        
+
         $url = parse_url($redirect_url);
         $redirect_obj['query'] = $url['query'];
         $redirect_obj['fragment'] = $url['fragment'];
         $redirect_obj['source'] = $url['path'];
-        
+
         switch ($crud_op) {
           case 'u':
-            // TODO: Check if there is already a redirect for the source and update it.
+          // TODO: Check if there is already a redirect for the source and update it.
           case 'c':
             $result = path_redirect_save($redirect_obj);
-            
+
             if (!isset($result['rid'])) {
               watchdog('xml2node', 'Redirect for node !node not created. URL: !url'
                   , array(
-                    '!node' => $nid,
-                    '!url' => $redirect_url,
+                '!node' => $nid,
+                '!url' => $redirect_url,
                   ), WATCHDOG_ERROR);
             }
-            
+
             break;
         }
       }
     }
+  }
+
+  /**
+   * saves a comment referring to a node or it's parent comment
+   * @param $comment the comment values
+   * @param $crud
+   */
+  public function commentSave($comment, $crud) {
+    if (isset($comment) && count($comment) > 0 && ($crud == 'c' || $crud == 'u')) {
+      if (module_exists('comment')) {
+        $cid = comment_save($comment);
+        if ($cid === false) {
+          watchdog('xml2node', 'Comment for node !node not created'
+              , array(
+            '!node' => $comment['nid'],
+              ), WATCHDOG_ERROR);
+        }
+        else {
+          return $cid;
+        }
+      }
+    }
+
+    return FALSE;
   }
 
   /**
@@ -239,4 +261,5 @@ class Nodecreator {
   public function __destruct() {
     // not needed - placeholder
   }
+
 }
