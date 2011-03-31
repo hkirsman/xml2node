@@ -168,7 +168,8 @@ class Nodecreator {
         }
 
         if (isset($node) && is_object($node) && isset($node->nid)) {
-          $node = node_load($node->nid);
+          // clear node_load cache before loading the node
+          $node = node_load($node->nid, NULL, TRUE);
           return $node;
         }
         else {

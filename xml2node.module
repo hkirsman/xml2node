@@ -351,6 +351,13 @@ function xml2node_import_node_proceed($node) {
     if (count($reference_node_info) > 0) {
       $current_node_info[$nid]['references'] = $reference_node_info;
     }
+
+    // invoking hooks by my self, want result to be set directly (last wins)
+    foreach (module_implements('x2n_postprocess') as $module) {
+      $function = $module . '_' . 'x2n_postprocess';
+      call_user_func_array($function, array($nid));
+    }
+
     // free memory
     unset($node);
     unset($nodecreator);
@@ -540,7 +547,7 @@ function xml2node_array_join() {
       // Value is an array
       if (is_array($value)) {
         // Traverse the array; replace or add result to original array
-        $original[$key] = array_join($original[$key], $array[$key]);
+        $original[$key] = xml2node_array_join($original[$key], $array[$key]);
       }
       // Value is not an array
       else {
