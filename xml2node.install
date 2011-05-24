@@ -27,4 +27,5 @@ function xml2node_uninstall() {
   variable_del('xml2node_count');
   variable_del('xml2node_offset');
   variable_del('queue_class_xml2node_queue');
+  variable_del('xml2node_entities_to_replace');
 }

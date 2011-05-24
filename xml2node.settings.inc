@@ -9,21 +9,21 @@
  */
 function xml2node_settings_form() {
   $form = array();
-  
+
   $form['xml2node_run_on_cron'] = array(
     '#type' => 'checkbox',
     '#title' => t('Import Nodes on cron'),
     '#default_value' => variable_get('xml2node_run_on_cron', 0),
     '#description' => t('Import Nodes from XML Files stored in Hotfolders on every cron run?'),
   );
-  
+
   $form['drupal_queue_on_cron'] = array(
     '#type' => 'checkbox',
     '#title' => t('Process queue on drupal cron'),
     '#default_value' => variable_get('drupal_queue_on_cron', 0),
     '#description' => t('Should the drupal queue module process queues on normal cron?'),
   );
-  
+
   $form['xml2node_queue_time'] = array(
     '#type' => 'textfield',
     '#title' => t('Queue worker time'),
@@ -32,7 +32,7 @@ function xml2node_settings_form() {
     '#maxlength' => 4,
     '#description' => t('How much time Drupal should spend on calling the queue worker in seconds.'),
   );
-  
+
   $form['xml2node_hotfolders'] = array(
     '#type' => 'textarea',
     '#title' => t('Hotfolders'),
@@ -40,7 +40,17 @@ function xml2node_settings_form() {
     '#rows' => 4,
     '#description' => t('Add Hotfolders to be crawled on cron (each line, one path relative to the base path)'),
   );
-  
+
+  $default_values = "&apos;|&#39;\n&#x96;|&ndash;\n&#x84;|&bdquo;\n&#x93;|&ldquo;\n&#x94;|&rdquo;\n&#x92;|&rsquo;\n&#x91;|&rsquo;\n&#x82;|&sbquo;\n&#x85;|&hellip;\n&#x97;|&mdash;";
+
+  $form['xml2node_entities_to_replace'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Entities to replace'),
+    '#default_value' => variable_get('xml2node_entities_to_replace', $default_values),
+    '#rows' => 12,
+    '#description' => t('Add Entities to be replaced during the import (each line, one "search|replace" pair)'),
+  );
+
   return system_settings_form($form);
 }
 

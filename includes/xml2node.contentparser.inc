@@ -9,7 +9,6 @@
 class Contentparser {
 
   // property declarations
-
   // XMLReader - to read the xml file
   private $xml_reader = NULL;
   // string - complete path to xml file to load
@@ -60,23 +59,23 @@ class Contentparser {
             break;
           }
         }
-        
+
         $pointer = 1;
-  
+
         // set the pointer to the passed index if possible
         while ($pointer != $index && $this->xml_reader->next()) {
           if ($this->xml_reader->getAttribute('type') == 'contenttype') {
             $pointer++;
           }
         }
-  
+
         if ($pointer == $index) {
           // get the current node as a DOMNode
           $dom = $this->xml_reader->expand();
           // convert the DOMNode into a SimpleXML Object
           $dom_doc = new DOMDocument('1.0', 'utf-8');
           $simple_xml_obj = simplexml_import_dom($dom_doc->importNode($dom, TRUE));
-          
+
           $this->arr_content = array();
           $result = $this->convertXmlObjToArr($simple_xml_obj, $this->arr_content);
 
@@ -84,7 +83,7 @@ class Contentparser {
           unset($dom);
           unset($dom_doc);
           unset($simple_xml_obj);
-          
+
           return $result;
         }
         else {
@@ -99,7 +98,7 @@ class Contentparser {
       return FALSE;
     }
   }
-  
+
   /**
    * get the number of contenttype elements in the xml file
    * 
@@ -107,7 +106,7 @@ class Contentparser {
    */
   public function get_number_of_elements() {
     $number_of_elements = 0;
-    
+
     // open xml file
     $this->load_xml();
     // set the pointer to the first contenttype element
@@ -124,7 +123,7 @@ class Contentparser {
         $number_of_elements++;
       }
     }
-    
+
     return $number_of_elements;
   }
 
@@ -139,34 +138,34 @@ class Contentparser {
   private function convertXmlObjToArr($node, &$arr) {
 
     $nextIdx = count($arr);
-    
+
     $arr[$nextIdx] = array();
     $arr[$nextIdx]['@name'] = drupal_strtolower((string) $node->getName());
     $arr[$nextIdx]['@attributes'] = array();
-    
+
     $attributes = $node->attributes();
-    
+
     foreach ($attributes as $attributeName => $attributeValue) {
       $attribName = drupal_strtolower(trim((string) $attributeName));
       $attribVal = trim((string) $attributeValue);
       $arr[$nextIdx]['@attributes'][$attribName] = $attribVal;
     }
-    
+
     $text = (string) $node;
     $text = trim($text);
-    
+
     $entities = Contentparser::entitiesToReplace();
     $text = str_replace($entities['search'], $entities['replace'], $text);
-    
+
     $text = html_entity_decode($text, ENT_COMPAT, 'UTF-8');
-    
+
     if (drupal_strlen($text) > 0) {
       $arr[$nextIdx]['@text'] = $text;
     }
-    
+
     $arr[$nextIdx]['@children'] = array();
     $children = $node->children();
-    
+
     foreach ($children as $child) {
       $this->convertXmlObjToArr($child, $arr[$nextIdx]['@children']);
     }
@@ -175,47 +174,30 @@ class Contentparser {
     unset($text);
     unset($children);
     unset($node);
-    
+
     return TRUE;
   }
-  
+
   /**
    * Returns an array with utf-8 entities and the HTML replacement 
    */
   public static function entitiesToReplace() {
     $entities['search'] = array();
     $entities['replace'] = array();
-    
-    $entities['search'][] = '&apos;'; // &apos; is not supported from IE
-    $entities['replace'][] = '&#39;';
-    
-    $entities['search'][] = '&#x96;';
-    $entities['replace'][] = '&ndash;';
-    
-    $entities['search'][] = '&#x84;';
-    $entities['replace'][] = '&bdquo;';
-    
-    $entities['search'][] = '&#x93;';
-    $entities['replace'][] = '&ldquo;';
-    
-    $entities['search'][] = '&#x94;';
-    $entities['replace'][] = '&rdquo;';
-    
-    $entities['search'][] = '&#x92;';
-    $entities['replace'][] = '&rsquo;';
-    
-    $entities['search'][] = '&#x91;';
-    $entities['replace'][] = '&rsquo;';
-    
-    $entities['search'][] = '&#x82;';
-    $entities['replace'][] = '&sbquo;';
-        
-    $entities['search'][] = '&#x85;';
-    $entities['replace'][] = '&hellip;';
-    
-    $entities['search'][] = '&#x97;';
-    $entities['replace'][] = '&mdash;';
-        
+
+    $default_values = "&apos;|&#39;\n&#x96;|&ndash;\n&#x84;|&bdquo;\n&#x93;|&ldquo;\n&#x94;|&rdquo;\n&#x92;|&rsquo;\n&#x91;|&rsquo;\n&#x82;|&sbquo;\n&#x85;|&hellip;\n&#x97;|&mdash;";
+
+    $entity_pairs = explode("\n", variable_get('xml2node_entities_to_replace', $default_values));
+
+    foreach ($entity_pairs as $entity_pair) {
+      $split_pair = explode('|', $entity_pair);
+
+      if (is_array($split_pair) && count($split_pair) == 2) {
+        $entities['search'] = $split_pair[0];
+        $entities['replace'] = $split_pair[1];
+      }
+    }
+
     return $entities;
   }
 
@@ -223,5 +205,5 @@ class Contentparser {
   public function __destruct() {
     // not needed - placeholder
   }
-  
+
 }
