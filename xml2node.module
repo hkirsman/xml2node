@@ -237,6 +237,7 @@ function xml2node_delete_obsolete_import_files() {
 
     // if there are hotfolders defined, crawl them
     foreach ((array) $hotfolders as $hotfolder) {
+      $hotfolder = trim($hotfolder);
       // get the already imported xml-files
       $files_to_delete = file_scan_directory($hotfolder, '.imported$');
       // delete the files
