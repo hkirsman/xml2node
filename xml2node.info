@@ -1,4 +1,11 @@
 name = "xml2node"
 description = "This module imports your content from predefined xml files"
-core = 6.x
-dependencies[] = drupal_queue
+core = 7.x
+project = "xml2node"
+
+files[] = includes/xml2node.entityXMLParser.inc
+files[] = includes/xml2node.entityXMLMapper.inc
+files[] = includes/xml2node.entityXMLImport.inc
+files[] = includes/xml2node.XMLReporter.inc
+
+dependencies[] = entity

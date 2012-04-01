@@ -3,213 +3,156 @@
 /*
  * @file
  */
+define('XML2NODE_METHOD_BATCH', 'batch');
+define('XML2NODE_METHOD_QUEUE', 'queue');
+
+
+require_once 'xml2node.queue.inc';
+require_once 'xml2node.migrate.inc';
+require_once 'includes/xml2node.XMLReporter.inc';
 
 /**
- * Implements hook_menu().
+ * Implementation of HOOK_init()
+ * @return void
+ */
+function xml2node_init() {
+
+}
+
+/**
+ * Implements HOOK_menu()
+ * @return array
  */
 function xml2node_menu() {
-  $items['admin/content/xml2node'] = array(
+
+  $items['admin/config/xml2node'] = array(
     'title' => 'xml2node',
     'description' => 'Adjust xml2node import settings or import nodes',
+    'position' => 'left',
     'page callback' => 'system_admin_menu_block_page',
-    'access arguments' => array('administer site configuration'),
+    'access arguments' => array('access administration pages'),
     'file' => 'system.admin.inc',
     'file path' => drupal_get_path('module', 'system'),
+    'type' => MENU_NORMAL_ITEM,
   );
 
-  $items['admin/content/xml2node/settings'] = array(
+  $items['admin/config/xml2node/settings'] = array(
     'title' => 'Settings',
     'description' => 'xml2node Settings',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('xml2node_settings_form'),
-    'access arguments' => array('administer site configuration'),
-    'type' => MENU_NORMAL_ITEM,
+    'access arguments' => array('access administration pages'),
     'file' => 'xml2node.settings.inc',
+    'weight' => 1,
   );
 
-  $items['admin/content/xml2node/queue'] = array(
+  $items['admin/config/xml2node/queue'] = array(
     'title' => 'Queue Status',
     'description' => 'Queue Status',
     'page callback' => 'xml2node_show_queue_status',
     'page arguments' => array(),
-    'access arguments' => array('administer site configuration'),
-    'type' => MENU_NORMAL_ITEM,
+    'access arguments' => array('access administration pages'),
     'file' => 'xml2node.settings.inc',
+    'weight' => 2,
   );
 
-  $items['admin/content/xml2node/import'] = array(
-    'title' => 'Import Nodes',
+  $items['admin/structure/xml2node/import'] = array(
+    'title' => 'XML2node import',
     'description' => 'Import Nodes from a XML file',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('xml2node_migrate_form'),
     'access arguments' => array('administer site configuration'),
     'type' => MENU_NORMAL_ITEM,
-    'file' => 'xml2node.migrate.inc',
+    'page callback' => 'xml2node_page_import',
+    'file' => 'xml2node.pages.inc',
+    'file path' => drupal_get_path('module', 'xml2node'),
   );
 
   return $items;
 }
 
 /**
- * Imports all the nodes in a import cycle via batch/queue job
- * 
- * @param $import_file
- * @param $count
- * @param $offset
- * @param $process
- * @param $method batch or queue
+ * Implementation of HOOK_permission()
+ * @return array
  */
-function xml2node_proceed_import($import_file, $count = 0, $offset = 0, $method = 'batch', $process = FALSE) {
-  if (isset($import_file) && !empty($import_file)) {
+function xml2node_permission() {
+  return array();
+}
 
-    // import contentparser class
-    module_load_include('inc', 'xml2node', 'includes/xml2node.contentparser');
 
-    // get the number of content type elements in the xml file
-    $parser = new Contentparser($import_file);
-    $number_of_elements = $parser->get_number_of_elements();
+/**
+ * Implementation of HOOK_theme()
+ * @return array
+ */
+function xml2node_theme() {
+  return array(
+    'xml2node_form_file_report' => array(
+      'element' => 'form'
+    )
+  );
+}
 
-    $from_index = $offset + 1;
-    $to_index = ($offset + $count) < $number_of_elements ? ($offset + $count) : $number_of_elements;
-    if ($count == 0) {
-      $to_index = $number_of_elements;
+function theme_xml2node_form_file_report($variables) {
+  $form = array_shift($variables);
+
+  $header = array(
+    render($form['select']),
+    t('Record #ID'),
+    t('Entity name'),
+    t('Entity type'),
+    t('Method'),
+  );
+
+  // Body
+  foreach (element_children($form['checkbox']) as $record_id) {
+    $row = array();
+    $entity_data = $form['entity_data']['#value'][$record_id];
+    $class = array('checkbox');
+
+    if($entity_data['imported']) {
+      $class[] = 'imported';
+    } else {
+      $class[] = 'not-imported';
     }
 
+    $row[] = array('data' => render($form['checkbox'][$record_id]), 'class' => $class);
+    $row[] = array('data' => render($entity_data['id']));
+    $row[] = array('data' => render($entity_data['name']));
+    $row[] = array('data' => render($entity_data['type']));
+    $row[] = array('data' => render($entity_data['method']));
 
-    if ($number_of_elements > 0) {
-      if ($from_index <= $number_of_elements) {
-        // import nodes with batch or queue depending on the method param
-        switch ($method) {
-          case 'queue':
-            $queue = drupal_queue_get('xml2node_queue');
-            $queue->createQueue();
-
-            // create a queue entry for every record index
-            for ($index = $from_index; $index <= $to_index; $index++) {
-              $data = array(
-                'index' => $index,
-                'xml' => $import_file
-              );
-              $queue->createItem($data);
-            }
-            break;
-          case 'batch':
-            // setting up batch job
-            $batch = array(
-              'operations' => array(),
-              'finished' => 'xml2node_import_node_finished',
-              'title' => format_plural($to_index - $offset, 'importing 1 node', 'importing @count nodes'),
-              'init_message' => t('initializing node import'),
-              'progress_message' => t('processed @current of @total nodes'),
-              'error_message' => t('An error occured while importing nodes'),
-              'file' => drupal_get_path('module', 'xml2node') . '/xml2node.batch.inc',
-            );
-
-            // create an operation for every record index
-            for ($index = $from_index; $index <= $to_index; $index++) {
-              $batch['operations'][] = array('xml2node_import_node', array($index, $import_file));
-            }
-
-            // run the batch job
-            batch_set($batch);
-            // if this function is not called from a form submit handler, run batch process
-            if ($process) {
-              batch_process();
-            }
-            break;
-        }
-      }
-      else {
-        // don't log to watchdog, because this only happens with manually startet imports
-        drupal_set_message(t('The defined offset is larger then the number of elements in the xml file.'), 'error');
-      }
-    }
-    else {
-      if ($method == 'batch') {
-        drupal_set_message(t('The XML File contains no content type elements! Check the file path.'), 'error');
-      }
-      else {
-        watchdog('xml2node', 'The XML File @file contains no content type elements! Check the file path.'
-            , array(
-          '@file' => $import_file
-            ), WATCHDOG_ERROR);
-      }
-    }
-    // free memory
-    unset($parser);
+    $rows[] = $row;
   }
+
+  $output = theme('table', array(
+    'header' => $header,
+    'rows' => isset($rows) ? $rows : array(),
+    'attributes' => array('class' => array('xml2node-report')),
+    'empty' => t('No revisions found.'),
+  ));
+
+  $output .= drupal_render_children($form);
+  return $output;
 }
 
 /**
- * Callback for Queue and Batch operations to import an xml record
- * 
- * @param $index
- * @param $xml_file
- */
-function xml2node_import_xml_record($index, $xml_file) {
-  // import contentparser class
-  module_load_include('inc', 'xml2node', 'includes/xml2node.contentparser');
-
-  // get the xml record with the passed index
-  $parser = new Contentparser($xml_file);
-  if ($parser->convert_xml_record($index)) {
-    // import contentmapper class
-    module_load_include('inc', 'xml2node', 'includes/xml2node.contentmapper');
-
-    // generate content type datastructure
-    $mapper = new Contentmapper($parser->get_content_array());
-    $mapper->mapContent();
-    $nodes_to_save = $mapper->getNodes();
-
-    // free some memory
-    unset($parser);
-    unset($mapper);
-
-    foreach ($nodes_to_save as $node_to_save) {
-      // save the node into drupal
-      $result = xml2node_import_node_proceed($node_to_save);
-
-      if (!$result) {
-        watchdog('xml2node', 'An error occured during import at index @index of the xml file @xml. The Node is not saved in drupal.'
-            , array(
-          '@index' => $index,
-          '@xml' => $xml_file
-            ), WATCHDOG_ERROR);
-      }
-    }
-  }
-  else {
-    watchdog('xml2node', 'The record with the index @index could not be read from the xml file @xml'
-        , array(
-      '@index' => $index,
-      '@xml' => $xml_file
-        ), WATCHDOG_ERROR);
-  }
-}
-
-/**
- * Implements hook_cron_queue_info().
+ * Implementation of HOOK_cron_queue_info()
+ * @return array
  */
 function xml2node_cron_queue_info() {
-  $queue['xml2node_queue'] = array(
-    'worker callback' => 'xml2node_queue_worker_callback',
-    'time' => variable_get('xml2node_queue_time', 15),
+  return array(
+    'xml2node_queue' => array(
+      'worker callback' => 'xml2node_queue_worker_callback',
+      'time' => variable_get('xml2node_queue_time', 10),
+    ),
   );
-  return $queue;
 }
 
 /**
- * Queue Callback
- */
-function xml2node_queue_worker_callback($data) {
-  xml2node_import_xml_record($data['index'], $data['xml']);
-}
-
-/**
- * Implements hook_cron().
+ * Implementation of HOOK_cron()
  */
 function xml2node_cron() {
+
   if (variable_get('xml2node_run_on_cron', 0)) {
+    $queue = DrupalQueue::get('xml2node_queue');
     // delete files that are not needed anymore
     xml2node_delete_obsolete_import_files();
 
@@ -218,242 +161,98 @@ function xml2node_cron() {
 
     foreach ($files as $file) {
       rename($file, $file . '.imported');
-      xml2node_proceed_import($file . '.imported', 0, 0, 'queue');
+      xml2node_proceed_import($file . '.imported', XML2NODE_METHOD_QUEUE);
     }
   }
 }
 
 /**
- * crawls through predefined hotfolders and deletes all obsolete xml files
- * if the queue is empty
- */
-function xml2node_delete_obsolete_import_files() {
-  $queue = drupal_queue_get('xml2node_queue');
-  $number_of_items = $queue->numberOfItems();
-  // TODO: improve this, so that completed files will be deleted, even if the queue ist not empty
-  if ($number_of_items == 0) {
-    // get hotfolder from settings
-    $hotfolders = explode("\n", variable_get('xml2node_hotfolders', ''));
-
-    // if there are hotfolders defined, crawl them
-    foreach ((array) $hotfolders as $hotfolder) {
-      $hotfolder = trim($hotfolder);
-      // get the already imported xml-files
-      $files_to_delete = file_scan_directory($hotfolder, '.imported$');
-      // delete the files
-      foreach ($files_to_delete as $filepath => $file) {
-        file_delete($filepath);
-      }
-    }
-  }
-}
-
-/**
- * crawls through predefined hotfolders and returnes all xml files to import
- * 
- * @return array paths to xml files
- */
-function xml2node_get_files_to_process() {
-  $files = array();
-
-  // get hotfolder from settings
-  $hotfolders = explode("\n", variable_get('xml2node_hotfolders', ''));
-
-  // if there are hotfolders defined, crawl them
-  foreach ((array) $hotfolders as $hotfolder) {
-    $hotfolder = trim($hotfolder);
-    $files_in_hotfolder = file_scan_directory($hotfolder, '.xml$');
-
-    foreach ($files_in_hotfolder as $filepath => $file_infos) {
-      $files[] = $filepath;
-    }
-  }
-
-  return $files;
-}
-
-/**
- * saves the passed node into the drupal system together with
- * the referenced nodes in a recursive way
+ * Cron queue worker callback
  *
- * @param $node array - the node to be imported
- *
- * @return array - node id of the created node (inclusive referenced nodes)
+ * @param data
  */
-function xml2node_import_node_proceed($node) {
-  // get administrator rights, to delete the nodes
-  global $user;
+function xml2node_queue_worker_callback($data) {
+  $context = array();
+  entityXMLImport::importEntity($data['index'], $data['xml'], $context);
+}
 
-  if (!$user->uid) {
-    $user = user_load(1);
-  }
+/**
+ * Imports all the nodes in a import cycle via batch/queue job
+ * @param $import_file
+ * @param string $method
+ * @param array $indexes
+ * @return void
+ */
+function xml2node_proceed_import($import_file, $method = XML2NODE_METHOD_BATCH, $indexes = array()) {
+  $importer = new entityXMLImport($import_file);
+  $importer->import($indexes, $method);
+}
 
-  $reference_node_info = array();
-  // TODO: process referencing nodes in seperate batch/http request
-  // if the node has referencing nodes, create them first
-  if (isset($node['references']) && count($node['references']) > 0) {
-    foreach ($node['references'] as $reference) {
-      // recursive call to create reference node
-      $result = xml2node_import_node_proceed($reference);
-      if ($result != FALSE) {
-        $reference_node_info[] = $result;
-      }
-      else {
-        return FALSE;
-      }
-    }
-  }
+/**
+ * Callback for saving various entities
+ *
+ * @param $filepath
+ * @param $entity
+ * @return bool
+ */
+function xml2node_entity_save($entity, $filepath, $update = FALSE) {
 
-  // add nodereferences to node
-  foreach ($reference_node_info as $reference_node) {
-    foreach ($reference_node as $rNid => $attr) {
-      // set nid into the reference field
-      $node['values'][$attr['ref']][]['nid'] = $rNid;
-    }
-  }
+  $entity_info = entity_get_info($entity->meta['entity_name']);
 
-  // create node
-  $current_node_info = array();
-
-  // invoke hook_x2n_preprocess_fields()
-  //$node['values'] = module_invoke_all('x2n_preprocess_fields', $node['values'], $node['type']);
-  // invoking hooks by my self, want result to be set directly (last wins)
-  foreach (module_implements('x2n_preprocess_fields') as $module) {
-    $function = $module . '_' . 'x2n_preprocess_fields';
-    $result = call_user_func_array($function, array($node['values'], $node['type']));
-    if (isset($result) && is_array($result)) {
-      $node['values'] = $result;
-    }
-  }
-
-
-  // import nodecreator class
-  module_load_include('inc', 'xml2node', 'includes/xml2node.nodecreator');
-
-  // save the node using the nodecreator class
-  $nodecreator = new Nodecreator();
-  $nid = $nodecreator->nodeSaveAlternative($node['type'], '', $node['values'], $node['crud'], $node['redirect']);
-
-  // return false if there were errors, creating the node
-  if ($nid != FALSE) {
-    // also create the comments if there are some
-    if (isset($node['comment_entries']) && count($node['comment_entries']) > 0) {
-      foreach ($node['comment_entries'] as $comment) {
-        _xml2node_import_comment_proceed($comment, $nid, null, $node['crud'], $nodecreator);
-      }
-    }
-
-    // cook up the information for the created node
-    $current_node_info[$nid]['type'] = $node['type'];
-    // if node should be referenced in a field of the parent node, define the field
-    if (isset($node['reference_field'])) {
-      $current_node_info[$nid]['ref'] = $node['reference_field'];
-    }
-    if (count($reference_node_info) > 0) {
-      $current_node_info[$nid]['references'] = $reference_node_info;
-    }
-
-    // invoking hooks by my self, want result to be set directly (last wins)
-    foreach (module_implements('x2n_postprocess') as $module) {
-      $function = $module . '_' . 'x2n_postprocess';
-      call_user_func_array($function, array($nid));
-    }
-
-    // free memory
-    unset($node);
-    unset($nodecreator);
-
-    return $current_node_info;
-  }
-  else {
-    // free memory
-    unset($node);
-    unset($nodecreator);
-
+  if (empty($entity_info)) {
     return FALSE;
   }
-}
 
-/**
- * Implements hook_x2n_preprocess_field().
- */
-function xml2node_x2n_preprocess_fields($fields, $type) {
-  // gather information about the content type
-  $contentTypeInfo = content_types($type);
+  $callback = $entity_info['save callback'];
 
-  foreach ($fields as $field_name => &$field_value) {
-    // check if this is a filefield, yes => download the file and add it to the database
-    if ($contentTypeInfo['fields'][$field_name]['type'] == 'filefield') {
-      $filestore = file_directory_path();
-      if (is_array($field_value)) {
-        foreach ($field_value as &$value) {
-          if (isset($value['filename'])) {
-            // get the preconfigured default path for this file field
-            $path = $contentTypeInfo['fields'][$field_name]['widget']['file_path'];
-
-            $filePath = empty($path) ? $filestore : $filestore . "/" . $path;
-
-            $file = (object) $value;
-
-            // download the file (if the file exists, it will be renamed)
-            $resulting_filepath = xml2node_download_file_to_temp($file->filepath, $file->filename);
-            // if the file was saved successfully add it to the database
-            if ($resulting_filepath) {
-              // if the delete_origin flag is set, delete the original file
-              if (isset($value['delete_origin']) && $value['delete_origin'] == 'true') {
-                file_delete($file->filepath);
-              }
-
-              $file->filepath = $resulting_filepath;
-              // move the file to the destination direcetory
-              if (file_move($file, $filePath)) {
-                // save the file to the database and get additional file information into the value array
-                $value = xml2node_array_join($value, xml2node_add_file_to_database($file));
-              }
-              else {
-                watchdog('xml2node', 'The file %file could not be moved.'
-                    , array(
-                  '%file' => $resulting_filepath,
-                    ), WATCHDOG_ERROR);
-                // set the value empty, so it will not be saved with the node
-                $value = NULL;
-              }
-            }
-            else {
-              watchdog('xml2node', 'The file %file could not be created.'
-                  , array(
-                '%file' => $file->filepath,
-                  ), WATCHDOG_ERROR);
-              // set the value empty, so it will not be saved with the node
-              $value = NULL;
-            }
-          }
-        }
-      }
-    }
+  $uri_callback = NULL;
+  if (isset($entity_info['uri callback'])) {
+    $uri_callback = $entity_info['uri callback'];
   }
 
-  return $fields;
-}
+  if (function_exists($callback)) {
+    module_invoke_all('xml2node_entity_presave', $entity);
 
-/**
- * saves the file into the database and returns valid file array
- * to save it into a cck filefield
- *
- * @author Jan Azzati, inspired by http://drupal.org/node/330421
- */
-function xml2node_add_file_to_database($file, $uid = 1, $status = 0) {
-  // add some meta-data
-  $file->filemime = file_get_mimetype($file->filepath);
-  $file->filesize = filesize($file->filepath);
-  $file->uid = $uid;
-  $file->status = $status;
-  $file->timestamp = time();
+    $callback($entity);
 
-  // save the file in the database
-  drupal_write_record('files', $file);
+    $eid = $entity->$entity_info['entity keys']['id'];
+    $record = array(
+      'file' => $filepath,
+      'rid' => $entity->meta['id'],
+      'eid' => $eid,
+      'entity_type' => $entity->meta['entity_name'],
+      'created' => time(),
+    );
 
-  return field_file_load($file->filepath);
+    if (!empty($uri_callback)) {
+      $uri = $uri_callback($entity);
+      $link = l(t('here'), $uri['path']);
+    }
+    else {
+      $link = t('No uri callback!');
+    }
+
+    if (isset($entity->meta['xid'])) {
+      $record['xid'] = $entity->meta['xid'];
+      drupal_write_record('xml_to_node', $record, 'xid');
+    }
+    else {
+      drupal_write_record('xml_to_node', $record);
+      if($update) {
+        drupal_set_message(t('Entity labeled "!label" was successfully updated. #ID: !id. Link: !link',
+                         array('!label' => $entity_info['label'], '!id' => $eid, '!link' => $link)));
+      } else {
+        drupal_set_message(t('Entity labeled "!label" was successfully imported with #ID: !id. Link: !link',
+                         array('!label' => $entity_info['label'], '!id' => $eid, '!link' => $link)));
+      }
+
+    }
+
+    module_invoke_all('xml2node_entity_save', $entity);
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 /**
@@ -461,7 +260,7 @@ function xml2node_add_file_to_database($file, $uid = 1, $status = 0) {
  *
  * @param $source A string containing a full path to the source file
  * @param $filename A string containing a filename to use in the temp dir
- * 
+ *
  * @return FALSE or a string containg the path to the file in the temp dir
  */
 function xml2node_download_file_to_temp($source, $filename) {
@@ -476,7 +275,8 @@ function xml2node_download_file_to_temp($source, $filename) {
       $directory = file_directory_temp();
 
       // check if the dir exists. if not, create it.
-      file_check_directory($directory, TRUE);
+      file_prepare_directory($directory, FILE_CREATE_DIRECTORY);
+      file_prepare_directory($directory, FILE_MODIFY_PERMISSIONS);
 
       // write the file to the destination
       if (!file_put_contents($directory . '/' . $filename, $request_result->data)) {
@@ -510,7 +310,8 @@ function xml2node_download_file_to_temp($source, $filename) {
     $directory = file_directory_temp();
 
     // check if the dir exists. if not, create it.
-    file_check_directory($directory, TRUE);
+    file_prepare_directory($directory, FILE_CREATE_DIRECTORY);
+    file_prepare_directory($directory, FILE_MODIFY_PERMISSIONS);
 
     // write the file to the destination
     if (!file_copy($source, $directory)) {
@@ -526,66 +327,4 @@ function xml2node_download_file_to_temp($source, $filename) {
     return $directory . '/' . $filename;
   }
   return FALSE;
-}
-
-/**
- * Backport of the PHP 5.3 function "array_replace_recursive by kyle [dot] florence [@t] gmail [dot] com
- * Joins two or more arrays together recursively; key/value pairs of the first 
- * array are replaced with key/value pairs from the subsequent arrays.  Any 
- * key/value pair not present in the first array is added to the final array 
- */
-function xml2node_array_join() {
-  // Get array arguments
-  $arrays = func_get_args();
-
-  // Define the original array
-  $original = array_shift($arrays);
-
-  // Loop through arrays
-  foreach ($arrays as $array) {
-    // Loop through array key/value pairs
-    foreach ($array as $key => $value) {
-      // Value is an array
-      if (is_array($value)) {
-        // Traverse the array; replace or add result to original array
-        $original[$key] = xml2node_array_join($original[$key], $array[$key]);
-      }
-      // Value is not an array
-      else {
-        // Replace or add current value to original array
-        $original[$key] = $value;
-      }
-    }
-  }
-
-  // Return the joined array
-  return $original;
-}
-
-/**
- * saves a comment along with its childs
- *
- * @param $comment the comment values
- * @param $nid the node, the comment belongs to
- * @param $pid the parent comment's id
- * @param $crud the crud operation
- */
-function _xml2node_import_comment_proceed($comment, $nid, $pid, $crud, &$nodecreator) {
-  if (isset($comment['values']) && $comment['values'] > 0 && isset($nid)) {
-    if (isset($pid)) {
-      $comment['values']['pid'] = $pid;
-    }
-
-    $comment['values']['nid'] = $nid;
-
-    // save the comment
-    $cid = $nodecreator->commentSave($comment['values'], $crud['action']);
-
-    // if there are child-comments, save them
-    if (isset($comment['childs']) && count($comment['childs']) > 0) {
-      foreach ($comment['childs'] as $child) {
-        _xml2node_import_comment_proceed($child, $nid, $cid, $crud, $nodecreator);
-      }
-    }
-  }
 }

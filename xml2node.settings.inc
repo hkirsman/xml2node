@@ -1,22 +1,23 @@
 <?php
-
-/*
+/**
  * @file
+ *  Settings
  */
 
 /**
- * form for making settings
+ * Xml2node settings form
+ * @return array
  */
 function xml2node_settings_form() {
   $form = array();
-  
+
   $form['xml2node_run_on_cron'] = array(
     '#type' => 'checkbox',
     '#title' => t('Import Nodes on cron'),
     '#default_value' => variable_get('xml2node_run_on_cron', 0),
     '#description' => t('Import Nodes from XML Files stored in Hotfolders on every cron run?'),
   );
-  
+
   $form['drupal_queue_on_cron'] = array(
     '#type' => 'checkbox',
     '#title' => t('Process queue on drupal cron'),
@@ -32,7 +33,7 @@ function xml2node_settings_form() {
     '#maxlength' => 4,
     '#description' => t('How much time Drupal should spend on calling the queue worker in seconds.'),
   );
-  
+
   $form['xml2node_hotfolders'] = array(
     '#type' => 'textarea',
     '#title' => t('Hotfolders'),
@@ -45,9 +46,11 @@ function xml2node_settings_form() {
 }
 
 /**
- * page callback for displaying queue stats
+ * Page callback for displaying queue stats
+ * @return string
  */
 function xml2node_show_queue_status() {
-  $queue = drupal_queue_get('xml2node_queue');
+  
+  $queue = DrupalQueue::get('xml2node_queue');
   return format_plural($queue->numberOfItems(), 'There is currently 1 item in the queue!', 'There are currently @count items in the queue!');
 }
