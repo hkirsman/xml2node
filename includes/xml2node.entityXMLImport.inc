@@ -5,6 +5,8 @@
  *
  * Takes care of cooperation between parser and mapper and performing actions on entities
  *
+ * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 
 class entityXMLImport {
@@ -135,16 +137,37 @@ class entityXMLImport {
           // get all entities that meets the conditions
           $query = $mapper->buildEntityQuery($entity_data);
           $result_set = $query->execute();
-          $updateEntities = entity_load($entity_name, array_keys($result_set[$entity_name]));
-          $mapper->setRequirements($dependencies);
-            
-          // repopulate each entity with data form xml and save
-          foreach ($updateEntities as $updateEntity) {
-            $mapper->buildEntity($entity_data, $filePath, $updateEntity);
-            $entities[$record_id] = $mapper->getEntity();
-            xml2node_entity_save($entities[$record_id], $filePath, $update = TRUE);
+          // if there are results (conditions were met)
+          if(sizeof($result_set)) {
+            $updateEntities = entity_load($entity_name, array_keys($result_set[$entity_name]));
+            // fallback to create, no entities matched the conditions
+            $mapper->setRequirements($dependencies);
+
+            // repopulate each entity with data form xml and save
+            foreach ($updateEntities as $updateEntity) {
+              $mapper->buildEntity($entity_data, $filePath, $updateEntity);
+              $entities[$record_id] = $mapper->getEntity();
+              xml2node_entity_save($entities[$record_id], $filePath, $update = TRUE);
+            }
+            break;
           }
-            
+          // there were no entities to update found, lets go to create.
+        case 'create':
+          // create entities
+          // if entity with corresponding file and record_id already exist, we are skipping
+          // @todo: consider saving policy ? aggressive, mild ?
+          if (!EntityXMLMapper::checkExistingEntity($record_id, $filePath)) {
+            $mapper->setRequirements($dependencies);
+            $mapper->buildEntity($entity_data, $filePath);
+            $entities[$record_id] = $mapper->getEntity();
+            xml2node_entity_save($entities[$record_id], $filePath);
+          }
+
+          else {
+            $entities[$record_id] = EntityXMLMapper::checkExistingEntity($record_id, $filePath);
+            drupal_set_message(t('Importing entity labeled "!name" with record #ID: !id was skipped because it already was imported',
+               array('!name' => $entity_data['#attributes']['name'], '!id' => $record_id)), 'warning');
+          }
           break;
         case 'delete':
           // get all entities that meets the conditions
@@ -163,26 +186,20 @@ class entityXMLImport {
               'entity_type' => $entity_data->meta['entity_name'],
               'created' => time(),
             );
-            entity_delete($entity_name, $id);
+
+            // return value is dependant on entity. We just have to assume there is a proper
+            // return value if deleting was successful
+            if(entity_delete($entity_name, $id)) {
+              watchdog('x2n', t('Entity labeled "!name" with #ID: !id deleted.',
+                array('!name' => $entity_name, '!id' => $id)), array('entity_data' => $entity_data));
+            }
+
             drupal_write_record('xml_to_node', $record);
             drupal_set_message(t('Entity labeled "!name" with #ID: !id deleted.',
                                array('!name' => $entity_name, '!id' => $id)));
             
           }
           break;
-        case 'create':
-          // create entities
-          // if entity with corresponding file and record_id already exist, we are skipping
-          // @todo: consider saving policy ? aggressive, mild ?
-          if (!EntityXMLMapper::checkExistingEntity($record_id, $filePath)) {
-            $mapper->setRequirements($dependencies);
-            $mapper->buildEntity($entity_data, $filePath);
-            $entities[$record_id] = $mapper->getEntity();
-            xml2node_entity_save($entities[$record_id], $filePath);
-          }
-          else {
-            $entities[$record_id] = EntityXMLMapper::checkExistingEntity($record_id, $filePath);
-          }
         default:
 
           break;

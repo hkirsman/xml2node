@@ -1,5 +1,12 @@
 <?php
 
+/*
+ * @file
+ *
+ * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
+ */
+
 function xml2node_page_import() {
   $output = '';
   

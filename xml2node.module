@@ -2,10 +2,12 @@
 
 /*
  * @file
+ *
+ * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 define('XML2NODE_METHOD_BATCH', 'batch');
 define('XML2NODE_METHOD_QUEUE', 'queue');
-
 
 require_once 'xml2node.queue.inc';
 require_once 'xml2node.migrate.inc';
@@ -85,14 +87,19 @@ function xml2node_permission() {
 function xml2node_theme() {
   return array(
     'xml2node_form_file_report' => array(
-      'element' => 'form'
+      'render element' => 'form'
     )
   );
 }
 
+/**
+ *
+ * @param $variables
+ * @return string
+ */
 function theme_xml2node_form_file_report($variables) {
-  $form = array_shift($variables);
-
+  $form = $variables['form'];
+  
   $header = array(
     render($form['select']),
     t('Record #ID'),
@@ -106,13 +113,13 @@ function theme_xml2node_form_file_report($variables) {
     $row = array();
     $entity_data = $form['entity_data']['#value'][$record_id];
     $class = array('checkbox');
-
+    
     if($entity_data['imported']) {
       $class[] = 'imported';
     } else {
       $class[] = 'not-imported';
     }
-
+    
     $row[] = array('data' => render($form['checkbox'][$record_id]), 'class' => $class);
     $row[] = array('data' => render($entity_data['id']));
     $row[] = array('data' => render($entity_data['name']));
@@ -121,7 +128,7 @@ function theme_xml2node_form_file_report($variables) {
 
     $rows[] = $row;
   }
-
+  
   $output = theme('table', array(
     'header' => $header,
     'rows' => isset($rows) ? $rows : array(),
@@ -150,7 +157,7 @@ function xml2node_cron_queue_info() {
  * Implementation of HOOK_cron()
  */
 function xml2node_cron() {
-
+  
   if (variable_get('xml2node_run_on_cron', 0)) {
     $queue = DrupalQueue::get('xml2node_queue');
     // delete files that are not needed anymore
@@ -158,7 +165,7 @@ function xml2node_cron() {
 
     // get all files to import from the hotfolders and import them using drupal queue
     $files = xml2node_get_files_to_process();
-
+    
     foreach ($files as $file) {
       rename($file, $file . '.imported');
       xml2node_proceed_import($file . '.imported', XML2NODE_METHOD_QUEUE);
@@ -168,7 +175,7 @@ function xml2node_cron() {
 
 /**
  * Cron queue worker callback
- *
+ * 
  * @param data
  */
 function xml2node_queue_worker_callback($data) {
@@ -191,8 +198,9 @@ function xml2node_proceed_import($import_file, $method = XML2NODE_METHOD_BATCH, 
 /**
  * Callback for saving various entities
  *
- * @param $filepath
  * @param $entity
+ * @param $filepath
+ * @param $update
  * @return bool
  */
 function xml2node_entity_save($entity, $filepath, $update = FALSE) {
@@ -200,6 +208,9 @@ function xml2node_entity_save($entity, $filepath, $update = FALSE) {
   $entity_info = entity_get_info($entity->meta['entity_name']);
 
   if (empty($entity_info)) {
+    watchdog('x2n', t('Entity named !name does not exist in system.',
+      array('!name' => $entity->meta['entity_name'])), array('entity' => $entity), WATCHDOG_ERROR);
+
     return FALSE;
   }
 
@@ -211,9 +222,21 @@ function xml2node_entity_save($entity, $filepath, $update = FALSE) {
   }
 
   if (function_exists($callback)) {
+
+    // Let other modules alter the entity just before saving it
+    // HOOK_entity_presave is option too
     module_invoke_all('xml2node_entity_presave', $entity);
 
-    $callback($entity);
+    // Calling save callback for entity
+    if($callback($entity)) {
+      watchdog('x2n', t('Calling save callback !callback succeeded. Entity was not created.',
+              array('!callback' => $callback)), array('entity' => $entity));
+    } else {
+      watchdog('x2n', t('Calling save callback !callback failed. Entity was not saved.',
+        array('!callback' => $callback)), array('entity' => $entity), WATCHDOG_ERROR);
+
+      return FALSE;
+    }
 
     $eid = $entity->$entity_info['entity keys']['id'];
     $record = array(
@@ -245,10 +268,11 @@ function xml2node_entity_save($entity, $filepath, $update = FALSE) {
         drupal_set_message(t('Entity labeled "!label" was successfully imported with #ID: !id. Link: !link',
                          array('!label' => $entity_info['label'], '!id' => $eid, '!link' => $link)));
       }
-
     }
 
+    // let modules alter the entity after saving
     module_invoke_all('xml2node_entity_save', $entity);
+
     return TRUE;
   }
 
@@ -260,7 +284,7 @@ function xml2node_entity_save($entity, $filepath, $update = FALSE) {
  *
  * @param $source A string containing a full path to the source file
  * @param $filename A string containing a filename to use in the temp dir
- *
+ * 
  * @return FALSE or a string containg the path to the file in the temp dir
  */
 function xml2node_download_file_to_temp($source, $filename) {

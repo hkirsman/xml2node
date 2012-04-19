@@ -1,7 +1,11 @@
 <?php
-/**
+/*
  * @file
- * Functions associated with queue
+ *
+ * Function associated with drupal queue
+ *
+ * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 
 /**

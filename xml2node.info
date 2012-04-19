@@ -7,5 +7,3 @@ files[] = includes/xml2node.entityXMLParser.inc
 files[] = includes/xml2node.entityXMLMapper.inc
 files[] = includes/xml2node.entityXMLImport.inc
 files[] = includes/xml2node.XMLReporter.inc
-
-dependencies[] = entity

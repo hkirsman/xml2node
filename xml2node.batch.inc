@@ -2,6 +2,9 @@
 
 /*
  * @file
+ *
+ * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 
 /**

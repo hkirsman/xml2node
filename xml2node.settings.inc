@@ -1,7 +1,11 @@
 <?php
-/**
+/*
  * @file
- *  Settings
+ *
+ * Settings forms
+ *
+ * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 
 /**

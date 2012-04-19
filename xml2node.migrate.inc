@@ -2,11 +2,14 @@
 
 /*
  * @file
+ *
+ *  @author Jan Azzati - Previon AG
+ *  @author blueminds.eu
  */
 
 /**
  * Form for processing the import
- *
+ * 
  * @param $form
  * @param $form_state
  * @return array
@@ -17,7 +20,7 @@ function xml2node_migrate_form($form, &$form_state) {
     'css' => array(drupal_get_path('module', 'xml2node') . '/css/xml2node.css'),
     'js' => array(drupal_get_path('module', 'xml2node') . '/js/xml2node.js'),
   );
-
+  
   // field for the filepath
   $form['file'] = array(
     '#type' => 'textfield',
@@ -25,7 +28,9 @@ function xml2node_migrate_form($form, &$form_state) {
     '#default_value' => isset($_GET['file']) ? $_GET['file'] : variable_get('xml2node_filepath', 'sites/default/files/'),
     '#size' => 60,
     '#maxlength' => 250,
-    '#description' => t('The path to the XML File you would like to import.'),
+    '#description' => t('The path to the XML File you would like to import. You can import same file multiple times.
+      Only new records will be imported. If the import fails, system will remember which entities were already imported
+      and wont import them again.'),
     '#required' => TRUE,
   );
 
@@ -54,7 +59,7 @@ function xml2node_migrate_form($form, &$form_state) {
 
 /**
  * Validation callback for xml2node_migrate_form
- *
+ * 
  * @param $form
  * @param $form_state
  * @return void
@@ -76,7 +81,7 @@ function xml2node_migrate_form_validate($form, &$form_state) {
 
 /**
  * Submit callback for xml2node_migrate_form
- *
+ * 
  * @param $form
  * @param $form_state
  * @return void
@@ -93,7 +98,7 @@ function xml2node_migrate_form_submit($form, &$form_state) {
 
 /**
  * Display file report
- *
+ * 
  * @param $form
  * @param $form_state
  * @return void
@@ -114,7 +119,7 @@ function xml2node_migrate_form_report_submit($form, &$form_state) {
 function xml2node_form_file_report($form, &$form_state, $file) {
   $form = array();
   $parser = new EntityXMLParser($file);
-
+  
   $entities = $parser->getAllXMLRecords();
   $imported_ids = db_select('xml_to_node', 'xtn')
     ->condition('file', $file)
@@ -124,7 +129,7 @@ function xml2node_form_file_report($form, &$form_state, $file) {
   foreach ($entities as $record_id => $entity) {
     $entity = array_shift($entity);
     $record_id = $entity['#attributes']['id'];
-
+    
     $imported = FALSE;
     if(array_search($record_id, $imported_ids) !== FALSE) {
       $imported = TRUE;
@@ -135,7 +140,7 @@ function xml2node_form_file_report($form, &$form_state, $file) {
       'id' => $entity['#attributes']['id'],
       'name' => $entity['#attributes']['name'],
       'type' => $entity['#attributes']['type'],
-      'method' => isset($entity['#attributes']['method']) ? $entity['#attributes']['method'] : t('create')
+      'method' => isset($entity['#attributes']['method']) ? $entity['#attributes']['method'] : 'create'
     );
 
     $checkbox_data[$record_id] = '';
@@ -155,13 +160,13 @@ function xml2node_form_file_report($form, &$form_state, $file) {
     '#type' => 'checkboxes',
     '#options' => $checkbox_data,
   );
-
+  
   $form['select'] = array(
     '#type' => 'button',
     '#value' => t('Select all'),
     '#attributes' => array('class' => array('form-xml2node-submit')),
   );
-
+  
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Import selected'),
@@ -173,17 +178,17 @@ function xml2node_form_file_report($form, &$form_state, $file) {
 
 function xml2node_form_file_report_submit($form, &$form_state) {
   global $base_url;
-
+  
   $indexes = array();
   $data = $form_state['values'];
-
+  
   array_unique($data['checkbox']);
   foreach($data['checkbox'] as $value) {
     if(!empty($value)) {
       $indexes[] = $value;
     }
   }
-
+  
   // proceed the node import from the xml file
   if(count($indexes)) {
     xml2node_proceed_import($data['file'], XML2NODE_METHOD_BATCH, $indexes);

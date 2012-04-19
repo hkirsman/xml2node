@@ -5,6 +5,7 @@
  * maps original content to Drupal content type fields
  *
  * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 class EntityXMLMapper {
 
@@ -188,12 +189,35 @@ class EntityXMLMapper {
         $entity->$property['#attributes']['name'] = $requirement->$ref_property;
       }
       else {
-        //error message ? status ? session...
+        // error - no dependency
+        watchdog('x2n', t('Required entity missing'), array('entity' => $entity), WATCHDOG_ERROR);
       }
     }
     elseif (isset($property['#attributes']['file'])) {
-      $tempPath = xml2node_download_file_to_temp($property['#attributes']['file'], $property['#attributes']['file_name']);
-      $entity->uri = file_unmanaged_move($tempPath);
+
+      if (!drupal_realpath($property['#attributes']['file'])) {
+        // external url
+        $tempPath = xml2node_download_file_to_temp($property['#attributes']['file'], $property['#attributes']['file_name']);
+        $entity->uri = file_unmanaged_move($tempPath);
+      } else if (file_exists(drupal_realpath($property['#attributes']['file'])))  {
+        //internal uri
+        $entity->uri = $property['#attributes']['file'];
+        $fid = db_select('file_managed', 'fm')
+          ->fields('fm', array('fid'))
+          ->condition('fm.uri', $entity->uri)
+          ->execute()->fetchColumn();
+
+        // File already exists and is managed
+        // We are setting entity id in order to update the image, instead of inserting it and
+        // violating 'unique' condition on uri column
+        if ($fid) {
+           $entity->fid = $fid;
+        }
+      } else {
+        // error - no file
+        watchdog('x2n', t('File on path !uri not found!', array('!uri' => $entity->uri)), array('entity' => $entity), WATCHDOG_ERROR);
+      }
+
       $entity->filename = $property['#attributes']['file_name'];
       $entity->filemime = file_get_mimetype($entity->uri);
       $entity->status = FILE_STATUS_PERMANENT;
@@ -273,7 +297,8 @@ class EntityXMLMapper {
         $tmpArray = $requirement->$ref_property;
       }
       else {
-        // error message ? status ? session...
+        // error - required dependency
+        watchdog('x2n', t('Required entity missing'), array('field' => $value), WATCHDOG_ERROR);
       }
     }
     else {

@@ -4,6 +4,10 @@
  * @file
  * collects messages about import
  *
+ * @TODO not in use yet - possible extension - creating uniform message logger
+ *
+ * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 class XMLReporter {
 

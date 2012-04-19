@@ -5,6 +5,7 @@
  * parses content from a xml file for usage in the later process
  *
  * @author Jan Azzati - Previon AG
+ * @author blueminds.eu
  */
 class EntityXMLParser {
 
@@ -174,7 +175,7 @@ class EntityXMLParser {
 
           // set the id for this tree node
           $dependencies[$delta]['#id'] = $ref_to_id;
-          // recurrently call this function to create leaves
+          // recurrently call this function to create leafs
           $this->buildDependencyTree($entities, $ref_to_id, $dependencies[$delta]['#children']);
         }
       }
@@ -190,7 +191,7 @@ class EntityXMLParser {
         $ref_to_id = (int)$field->attributes()->ref_to;
         // set the id for this tree node
         $dependencies[$delta]['#id'] = $ref_to_id;
-        // recurrently call this function to create leaves
+        // recurrently call this function to create leafs
         $this->buildDependencyTree($entities, $ref_to_id, $dependencies[$delta]['#children']);
       }
     }
@@ -198,7 +199,7 @@ class EntityXMLParser {
 
   /**
    * Function builds entity data based on dependency tree.
-   * Function starts building from leaves and moves up to the tree root.
+   * Function starts building from leafs and moves up to the tree root.
    *
    * @param $entities
    * @param $dependencies
