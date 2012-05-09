@@ -227,8 +227,13 @@ function xml2node_entity_save($entity, $filepath, $update = FALSE) {
     // HOOK_entity_presave is option too
     module_invoke_all('xml2node_entity_presave', $entity);
 
+    // we cannot really assume that save callback return true or false value
+    // we will be checking 'id' instead ( this can be tricky ) while updating, ID already exists, but there is no better way
+    $callback($entity);
+    $id  = $entity_info['entity keys']['id'];
+
     // Calling save callback for entity
-    if($callback($entity)) {
+    if($id) {
       watchdog('x2n', t('Calling save callback !callback succeeded. Entity was not created.',
               array('!callback' => $callback)), array('entity' => $entity));
     } else {

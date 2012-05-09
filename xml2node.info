@@ -3,6 +3,8 @@ description = "This module imports your content from predefined xml files"
 core = 7.x
 project = "xml2node"
 
+dependencies[] = entity
+
 files[] = includes/xml2node.entityXMLParser.inc
 files[] = includes/xml2node.entityXMLMapper.inc
 files[] = includes/xml2node.entityXMLImport.inc

@@ -194,11 +194,21 @@ class EntityXMLMapper {
       }
     }
     elseif (isset($property['#attributes']['file'])) {
+      $field_name = $property['#attributes']['belongs_to_field'];
+      $entity_name = $property['#attributes']['belongs_to_entity'];
+      $bundle_name = $property['#attributes']['belongs_to_bundle'];
+
+      $instance_info =  field_info_instance($entity_name, $field_name, $bundle_name);
+      $path = 'public://';
+      if(isset($instance_info['settings']['file_directory'])) {
+        $path .= $instance_info['settings']['file_directory'];
+      }
 
       if (!drupal_realpath($property['#attributes']['file'])) {
         // external url
         $tempPath = xml2node_download_file_to_temp($property['#attributes']['file'], $property['#attributes']['file_name']);
-        $entity->uri = file_unmanaged_move($tempPath);
+        $entity->uri = file_unmanaged_move($tempPath, $path);
+
       } else if (file_exists(drupal_realpath($property['#attributes']['file'])))  {
         //internal uri
         $entity->uri = $property['#attributes']['file'];

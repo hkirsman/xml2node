@@ -105,7 +105,14 @@
                         drupal will rename this file if already exists
        -->
 
-      <property name="fid" file="http://denver2012.drupal.org/sites/all/themes/denver2012/images/logo.png" file_name="drupalcon.png"></property>
+      <property
+          name="fid"
+          file="http://denver2012.drupal.org/sites/all/themes/denver2012/images/logo.png"
+          file_name="drupalcon.png"
+          belongs_to_entity = "node"
+          belongs_to_bundle = "article"
+          belongs_to_field = "field_image"
+        ></property>
     </properties>
   </entity>
 </entities>

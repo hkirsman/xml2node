@@ -98,7 +98,7 @@ class entityXMLImport {
 
     // We want to store our entities temporary. After creating the entities we want to keep them because of dependency
     $entities = array();
-    
+
     foreach ($entities_data as $record_id => $entity_data) {
       $entity_data = array_shift($entity_data);
       $entity_name = $entity_data['#attributes']['name'];
@@ -161,13 +161,12 @@ class entityXMLImport {
             $mapper->buildEntity($entity_data, $filePath);
             $entities[$record_id] = $mapper->getEntity();
             xml2node_entity_save($entities[$record_id], $filePath);
+          } else {
+            $entities[$record_id] = EntityXMLMapper::checkExistingEntity($record_id, $filePath);
+            drupal_set_message(t('Importing entity labeled "!name" with record #ID: !id already imported',
+              array('!name' => $entity_data['#attributes']['name'], '!id' => $record_id)), 'status');
           }
 
-          else {
-            $entities[$record_id] = EntityXMLMapper::checkExistingEntity($record_id, $filePath);
-            drupal_set_message(t('Importing entity labeled "!name" with record #ID: !id was skipped because it already was imported',
-               array('!name' => $entity_data['#attributes']['name'], '!id' => $record_id)), 'warning');
-          }
           break;
         case 'delete':
           // get all entities that meets the conditions
