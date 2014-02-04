@@ -155,10 +155,13 @@ function xml2node_cron_queue_info() {
 
 /**
  * Implementation of HOOK_cron()
+ *
+ * @param bool $force
+ *   Force the execution of the xml2node import, also when it's disabled in the settings
  */
-function xml2node_cron() {
+function xml2node_cron($force = FALSE) {
 
-  if (variable_get('xml2node_run_on_cron', 0)) {
+  if ($force || variable_get('xml2node_run_on_cron', 0)) {
     $queue = DrupalQueue::get('xml2node_queue');
     // delete files that are not needed anymore
     xml2node_delete_obsolete_import_files();
