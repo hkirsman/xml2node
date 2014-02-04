@@ -99,7 +99,7 @@ function xml2node_theme() {
  */
 function theme_xml2node_form_file_report($variables) {
   $form = $variables['form'];
-  
+
   $header = array(
     render($form['select']),
     t('Record #ID'),
@@ -113,13 +113,13 @@ function theme_xml2node_form_file_report($variables) {
     $row = array();
     $entity_data = $form['entity_data']['#value'][$record_id];
     $class = array('checkbox');
-    
+
     if($entity_data['imported']) {
       $class[] = 'imported';
     } else {
       $class[] = 'not-imported';
     }
-    
+
     $row[] = array('data' => render($form['checkbox'][$record_id]), 'class' => $class);
     $row[] = array('data' => render($entity_data['id']));
     $row[] = array('data' => render($entity_data['name']));
@@ -128,7 +128,7 @@ function theme_xml2node_form_file_report($variables) {
 
     $rows[] = $row;
   }
-  
+
   $output = theme('table', array(
     'header' => $header,
     'rows' => isset($rows) ? $rows : array(),
@@ -157,7 +157,7 @@ function xml2node_cron_queue_info() {
  * Implementation of HOOK_cron()
  */
 function xml2node_cron() {
-  
+
   if (variable_get('xml2node_run_on_cron', 0)) {
     $queue = DrupalQueue::get('xml2node_queue');
     // delete files that are not needed anymore
@@ -165,7 +165,7 @@ function xml2node_cron() {
 
     // get all files to import from the hotfolders and import them using drupal queue
     $files = xml2node_get_files_to_process();
-    
+
     foreach ($files as $file) {
       rename($file, $file . '.imported');
       xml2node_proceed_import($file . '.imported', XML2NODE_METHOD_QUEUE);
@@ -175,7 +175,7 @@ function xml2node_cron() {
 
 /**
  * Cron queue worker callback
- * 
+ *
  * @param data
  */
 function xml2node_queue_worker_callback($data) {
@@ -262,9 +262,29 @@ function xml2node_entity_save($entity, $filepath, $update = FALSE) {
 
     if (isset($entity->meta['xid'])) {
       $record['xid'] = $entity->meta['xid'];
+
+      // If content lock module is installed, check that the content is not locked on update
+      if(module_exists('content_lock') && $entity_info['base table'] == 'node' && content_lock_fetch_lock($record['xid']) !== FALSE) {
+
+        drupal_set_message(t('Entity labeled "!label" was not updated because it\'s locked. #ID: !id. Link: !link',
+          array('!label' => $entity_info['label'], '!id' => $eid, '!link' => $link)));
+
+        return TRUE;
+      }
+
       drupal_write_record('xml_to_node', $record, 'xid');
     }
     else {
+
+      // If content lock module is installed, check that the content is not locked on update
+      if($update && module_exists('content_lock') && $entity_info['base table'] == 'node' && content_lock_fetch_lock($entity->nid) !== FALSE) {
+
+        drupal_set_message(t('Entity labeled "!label" was not updated because it\'s locked. #ID: !id. Link: !link',
+          array('!label' => $entity_info['label'], '!id' => $eid, '!link' => $link)));
+
+        return TRUE;
+      }
+
       drupal_write_record('xml_to_node', $record);
       if($update) {
         drupal_set_message(t('Entity labeled "!label" was successfully updated. #ID: !id. Link: !link',
@@ -289,7 +309,7 @@ function xml2node_entity_save($entity, $filepath, $update = FALSE) {
  *
  * @param $source A string containing a full path to the source file
  * @param $filename A string containing a filename to use in the temp dir
- * 
+ *
  * @return FALSE or a string containg the path to the file in the temp dir
  */
 function xml2node_download_file_to_temp($source, $filename) {
